@@ -780,7 +780,6 @@ function renderMonth() {
 function renderMonthDay(date, activeMonth) {
   const dateKey = toDateInput(date);
   const events = getVisibleEvents().filter((event) => event.date === dateKey);
-  const desktopMoreCount = events.length - 4;
   const isOutside = date.getMonth() !== activeMonth;
   const isToday = dateKey === toDateInput(new Date());
 
@@ -792,7 +791,6 @@ function renderMonthDay(date, activeMonth) {
       </div>
       <div class="event-stack">
         ${events.map(renderEventPill).join("")}
-        ${desktopMoreCount > 0 ? `<div class="more-count desktop-more-count">+${desktopMoreCount}</div>` : ""}
       </div>
     </div>
   `;

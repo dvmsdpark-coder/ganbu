@@ -631,10 +631,6 @@ select:disabled {
   text-align: left;
 }
 
-.event-pill:nth-of-type(n + 5) {
-  display: none;
-}
-
 .event-time {
   color: var(--muted);
   font-size: 11px;
@@ -648,16 +644,6 @@ select:disabled {
   white-space: nowrap;
   font-size: 12px;
   font-weight: 700;
-}
-
-.more-count {
-  color: var(--muted);
-  font-size: 12px;
-  padding-left: 4px;
-}
-
-.mobile-more-count {
-  display: none;
 }
 
 .week-view {
@@ -903,10 +889,6 @@ select:disabled {
     border-radius: 4px;
   }
 
-  .event-pill:nth-of-type(n + 5) {
-    display: grid;
-  }
-
   .event-pill .event-time {
     overflow: hidden;
     text-overflow: clip;
@@ -922,20 +904,6 @@ select:disabled {
     overflow-wrap: anywhere;
     font-size: 9px;
     line-height: 1.25;
-  }
-
-  .more-count {
-    padding-left: 1px;
-    font-size: 10px;
-    line-height: 1.1;
-  }
-
-  .desktop-more-count {
-    display: none;
-  }
-
-  .mobile-more-count {
-    display: none;
   }
 
   .week-event {
