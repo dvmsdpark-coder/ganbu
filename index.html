@@ -7,7 +7,71 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <div class="app-shell">
+    <section id="authScreen" class="auth-screen">
+      <div class="auth-card">
+        <div class="brand auth-brand">
+          <div class="brand-mark" aria-hidden="true">일</div>
+          <div>
+            <h1>간부 일정관리</h1>
+            <p>승인된 사용자만 접속할 수 있습니다.</p>
+          </div>
+        </div>
+
+        <div class="auth-tabs" role="tablist" aria-label="인증">
+          <button id="loginTabButton" class="segment active" type="button">로그인</button>
+          <button id="signupTabButton" class="segment" type="button">회원가입</button>
+        </div>
+
+        <form id="loginForm" class="auth-form">
+          <label>
+            <span>이메일</span>
+            <input id="loginEmail" type="email" autocomplete="email" required>
+          </label>
+          <label>
+            <span>비밀번호</span>
+            <input id="loginPassword" type="password" autocomplete="current-password" required>
+          </label>
+          <button class="primary-button" type="submit">로그인</button>
+        </form>
+
+        <form id="signupForm" class="auth-form hidden">
+          <label>
+            <span>이름</span>
+            <input id="signupName" type="text" autocomplete="name" required>
+          </label>
+          <label>
+            <span>소속</span>
+            <select id="signupDivision" required></select>
+          </label>
+          <label>
+            <span>이메일</span>
+            <input id="signupEmail" type="email" autocomplete="email" required>
+          </label>
+          <label>
+            <span>비밀번호</span>
+            <input id="signupPassword" type="password" autocomplete="new-password" minlength="6" required>
+          </label>
+          <button class="primary-button" type="submit">가입 신청</button>
+        </form>
+
+        <p id="authMessage" class="auth-message"></p>
+      </div>
+    </section>
+
+    <section id="pendingScreen" class="auth-screen hidden">
+      <div class="auth-card">
+        <div class="brand auth-brand">
+          <div class="brand-mark" aria-hidden="true">일</div>
+          <div>
+            <h1>승인 대기</h1>
+            <p id="pendingMessage">총관리자 승인 후 접속할 수 있습니다.</p>
+          </div>
+        </div>
+        <button id="pendingLogoutButton" class="text-button" type="button">로그아웃</button>
+      </div>
+    </section>
+
+    <div id="appShell" class="app-shell hidden">
       <header class="topbar">
         <div class="brand">
           <div class="brand-mark" aria-hidden="true">일</div>
@@ -25,13 +89,15 @@
             <span>권한</span>
             <select id="roleSelect">
               <option value="member">구성원</option>
-              <option value="admin">관리자</option>
+              <option value="division_admin">국 관리자</option>
+              <option value="super_admin">총관리자</option>
             </select>
           </label>
           <label>
             <span>사용자</span>
             <input id="userNameInput" type="text" autocomplete="name">
           </label>
+          <button id="logoutButton" class="text-button session-logout" type="button">로그아웃</button>
         </div>
       </header>
 
@@ -57,6 +123,14 @@
               <h2>변경 이력</h2>
             </div>
             <div class="history-list" id="historyList"></div>
+          </section>
+
+          <section id="userApprovalPanel" class="panel hidden">
+            <div class="panel-heading">
+              <h2>사용자 승인</h2>
+              <button id="refreshUsersButton" class="icon-button" type="button" title="새로고침" aria-label="사용자 목록 새로고침">↺</button>
+            </div>
+            <div id="userApprovalList" class="approval-list"></div>
           </section>
         </aside>
 

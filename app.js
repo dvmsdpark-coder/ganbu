@@ -1,5 +1,6 @@
 const STORAGE_KEY = "executiveScheduleApp.v1";
 const SUPABASE_CONFIG_KEY = `${STORAGE_KEY}.supabase`;
+const AUTH_SESSION_KEY = `${STORAGE_KEY}.authSession`;
 const DEFAULT_SUPABASE_CONFIG = {
   url: "https://jitleoweloogqflgspnx.supabase.co/rest/v1/",
   anonKey: "sb_publishable_tdPj2LiqXhD3ii-p-geXng_0g0TXvY4"
@@ -55,6 +56,11 @@ const state = {
   filters: new Set(ranks.map((rank) => rank.id)),
   showArchived: false,
   data: null,
+  profile: null,
+  auth: {
+    session: null,
+    user: null
+  },
   supabase: {
     url: "",
     anonKey: "",
@@ -73,10 +79,10 @@ async function init() {
   bindElements();
   hydrateSession();
   hydrateSupabaseConfig();
+  hydrateAuthSession();
   renderStaticControls();
   bindEvents();
-  await loadData();
-  render();
+  await restoreAuthenticatedApp();
 }
 
 function bindElements() {
@@ -120,7 +126,27 @@ function bindElements() {
     supabaseAnonKeyInput: document.querySelector("#supabaseAnonKeyInput"),
     supabaseConnectButton: document.querySelector("#supabaseConnectButton"),
     supabaseDisconnectButton: document.querySelector("#supabaseDisconnectButton"),
-    supabaseStatus: document.querySelector("#supabaseStatus")
+    supabaseStatus: document.querySelector("#supabaseStatus"),
+    authScreen: document.querySelector("#authScreen"),
+    pendingScreen: document.querySelector("#pendingScreen"),
+    appShell: document.querySelector("#appShell"),
+    loginTabButton: document.querySelector("#loginTabButton"),
+    signupTabButton: document.querySelector("#signupTabButton"),
+    loginForm: document.querySelector("#loginForm"),
+    signupForm: document.querySelector("#signupForm"),
+    loginEmail: document.querySelector("#loginEmail"),
+    loginPassword: document.querySelector("#loginPassword"),
+    signupName: document.querySelector("#signupName"),
+    signupDivision: document.querySelector("#signupDivision"),
+    signupEmail: document.querySelector("#signupEmail"),
+    signupPassword: document.querySelector("#signupPassword"),
+    authMessage: document.querySelector("#authMessage"),
+    pendingMessage: document.querySelector("#pendingMessage"),
+    pendingLogoutButton: document.querySelector("#pendingLogoutButton"),
+    logoutButton: document.querySelector("#logoutButton"),
+    userApprovalPanel: document.querySelector("#userApprovalPanel"),
+    userApprovalList: document.querySelector("#userApprovalList"),
+    refreshUsersButton: document.querySelector("#refreshUsersButton")
   });
 }
 
@@ -136,6 +162,8 @@ async function loadData() {
       state.supabase.connected = false;
       setSupabaseStatus("Supabase 연결 실패", "error");
       console.warn(error);
+      state.data = { events: [], history: [] };
+      return;
     }
   }
 
@@ -217,7 +245,7 @@ function sampleEvent(divisionId, rank, person, startTime, endTime, date, title, 
 function hydrateSession() {
   const session = JSON.parse(localStorage.getItem(`${STORAGE_KEY}.session`) || "{}");
   state.divisionId = normalizeDivisionId(session.divisionId || state.divisionId);
-  state.role = session.role || state.role;
+  state.role = session.role === "admin" ? "division_admin" : session.role || state.role;
   state.userName = session.userName || state.userName;
   state.showArchived = Boolean(session.showArchived);
 }
@@ -239,6 +267,26 @@ function hydrateSupabaseConfig() {
   state.supabase.url = normalizeSupabaseUrl(config.url || DEFAULT_SUPABASE_CONFIG.url);
   state.supabase.anonKey = config.anonKey || DEFAULT_SUPABASE_CONFIG.anonKey;
   state.supabase.enabled = Boolean(state.supabase.url && state.supabase.anonKey);
+}
+
+function hydrateAuthSession() {
+  const stored = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null");
+  if (!stored?.accessToken || !stored?.refreshToken) return;
+  state.auth.session = stored;
+  state.auth.user = stored.user || null;
+}
+
+function saveAuthSession(session) {
+  if (!session) {
+    localStorage.removeItem(AUTH_SESSION_KEY);
+    state.auth.session = null;
+    state.auth.user = null;
+    return;
+  }
+
+  state.auth.session = session;
+  state.auth.user = session.user;
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
 }
 
 function saveSupabaseConfig() {
@@ -263,9 +311,15 @@ function renderStaticControls() {
   els.divisionSelect.value = state.divisionId;
   els.roleSelect.value = state.role;
   els.userNameInput.value = state.userName;
+  els.divisionSelect.disabled = true;
+  els.roleSelect.disabled = true;
+  els.userNameInput.readOnly = true;
   els.showArchivedToggle.checked = state.showArchived;
   if (els.supabaseUrlInput) els.supabaseUrlInput.value = state.supabase.url;
   if (els.supabaseAnonKeyInput) els.supabaseAnonKeyInput.value = state.supabase.anonKey;
+  els.signupDivision.innerHTML = divisions
+    .map((division) => `<option value="${division.id}">${division.name}</option>`)
+    .join("");
 
   els.eventRank.innerHTML = ranks
     .map((rank) => `<option value="${rank.id}">${rank.label}</option>`)
@@ -295,6 +349,14 @@ function renderStaticControls() {
 }
 
 function bindEvents() {
+  els.loginTabButton.addEventListener("click", () => showAuthMode("login"));
+  els.signupTabButton.addEventListener("click", () => showAuthMode("signup"));
+  els.loginForm.addEventListener("submit", handleLogin);
+  els.signupForm.addEventListener("submit", handleSignup);
+  els.logoutButton.addEventListener("click", handleLogout);
+  els.pendingLogoutButton.addEventListener("click", handleLogout);
+  els.refreshUsersButton.addEventListener("click", loadAndRenderApprovals);
+
   els.divisionSelect.addEventListener("change", () => {
     state.divisionId = els.divisionSelect.value;
     saveSession();
@@ -376,6 +438,246 @@ function bindEvents() {
   els.deleteEventButton.addEventListener("click", deleteCurrentEvent);
 }
 
+async function restoreAuthenticatedApp() {
+  if (!state.auth.session) {
+    showLoggedOut();
+    return;
+  }
+
+  try {
+    await ensureAccessToken();
+    const profile = await fetchCurrentProfile();
+    await enterWithProfile(profile);
+  } catch (error) {
+    console.warn(error);
+    showLoggedOut("세션이 만료되었습니다. 다시 로그인해주세요.");
+  }
+}
+
+function showAuthMode(mode) {
+  const isLogin = mode === "login";
+  els.loginTabButton.classList.toggle("active", isLogin);
+  els.signupTabButton.classList.toggle("active", !isLogin);
+  els.loginForm.classList.toggle("hidden", !isLogin);
+  els.signupForm.classList.toggle("hidden", isLogin);
+  setAuthMessage("");
+}
+
+function showLoggedOut(message = "") {
+  els.authScreen.classList.remove("hidden");
+  els.pendingScreen.classList.add("hidden");
+  els.appShell.classList.add("hidden");
+  setAuthMessage(message);
+}
+
+function showPending(profile) {
+  els.authScreen.classList.add("hidden");
+  els.pendingScreen.classList.remove("hidden");
+  els.appShell.classList.add("hidden");
+  const statusText = profile.status === "rejected" ? "가입 신청이 반려되었습니다." : "총관리자 승인 후 접속할 수 있습니다.";
+  els.pendingMessage.textContent = `${profile.displayName || "사용자"}님, ${statusText}`;
+}
+
+function showApp() {
+  els.authScreen.classList.add("hidden");
+  els.pendingScreen.classList.add("hidden");
+  els.appShell.classList.remove("hidden");
+}
+
+function setAuthMessage(message, isError = false) {
+  els.authMessage.textContent = message;
+  els.authMessage.classList.toggle("error", isError);
+}
+
+async function handleSignup(event) {
+  event.preventDefault();
+  setAuthMessage("가입 신청 중입니다.");
+
+  const displayName = els.signupName.value.trim();
+  const divisionId = els.signupDivision.value;
+  const email = els.signupEmail.value.trim();
+  const password = els.signupPassword.value;
+
+  try {
+    const result = await authRequest("signup", {
+      method: "POST",
+      body: JSON.stringify({
+        email,
+        password,
+        data: {
+          display_name: displayName,
+          division_id: divisionId
+        }
+      })
+    });
+
+    if (result.access_token) {
+      saveAuthSession(authPayloadToSession(result));
+      const profile = await fetchCurrentProfile();
+      showPending(profile);
+    } else {
+      setAuthMessage("가입 신청이 접수되었습니다. 이메일 확인 후 총관리자 승인을 기다려주세요.");
+      showAuthMode("login");
+    }
+  } catch (error) {
+    setAuthMessage(error.message, true);
+  }
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+  setAuthMessage("로그인 중입니다.");
+
+  try {
+    const result = await authRequest("token?grant_type=password", {
+      method: "POST",
+      body: JSON.stringify({
+        email: els.loginEmail.value.trim(),
+        password: els.loginPassword.value
+      })
+    });
+    saveAuthSession(authPayloadToSession(result));
+    const profile = await fetchCurrentProfile();
+    await enterWithProfile(profile);
+  } catch (error) {
+    setAuthMessage("로그인에 실패했습니다. 이메일, 비밀번호, 승인 상태를 확인해주세요.", true);
+  }
+}
+
+async function handleLogout() {
+  try {
+    if (state.auth.session?.accessToken) {
+      await authRequest("logout", {
+        method: "POST",
+        authToken: state.auth.session.accessToken
+      });
+    }
+  } catch {
+    // Local logout still clears the browser session.
+  }
+  saveAuthSession(null);
+  state.profile = null;
+  state.data = null;
+  showLoggedOut("로그아웃되었습니다.");
+}
+
+async function enterWithProfile(profile) {
+  state.profile = profile;
+
+  if (profile.status !== "approved") {
+    showPending(profile);
+    return;
+  }
+
+  state.divisionId = profile.role === "super_admin" ? normalizeDivisionId(state.divisionId) : profile.divisionId;
+  state.role = profile.role;
+  state.userName = profile.displayName;
+  saveSession();
+  applyProfileToHeader();
+  await loadData();
+  showApp();
+  render();
+  if (state.role === "super_admin") {
+    await loadAndRenderApprovals();
+  }
+}
+
+function applyProfileToHeader() {
+  els.divisionSelect.value = state.divisionId;
+  els.roleSelect.value = state.role;
+  els.userNameInput.value = state.userName;
+  els.divisionSelect.disabled = state.role !== "super_admin";
+  els.roleSelect.disabled = true;
+  els.userNameInput.readOnly = true;
+}
+
+async function fetchCurrentProfile() {
+  const rows = await supabaseRequest(`app_profiles?user_id=eq.${state.auth.user.id}&select=*&limit=1`);
+  if (!rows?.length) {
+    throw new Error("사용자 프로필을 찾을 수 없습니다. Supabase Auth 스키마를 실행해주세요.");
+  }
+  return dbToProfile(rows[0]);
+}
+
+async function loadAndRenderApprovals() {
+  if (state.role !== "super_admin") {
+    els.userApprovalPanel.classList.add("hidden");
+    return;
+  }
+
+  const rows = await supabaseRequest("app_profiles?select=*&order=created_at.desc");
+  renderApprovals(rows.map(dbToProfile));
+}
+
+function renderApprovals(profiles) {
+  els.userApprovalPanel.classList.remove("hidden");
+  if (!profiles.length) {
+    els.userApprovalList.innerHTML = `<div class="empty-state">사용자가 없습니다.</div>`;
+    return;
+  }
+
+  els.userApprovalList.innerHTML = profiles
+    .map((profile) => renderApprovalItem(profile))
+    .join("");
+
+  els.userApprovalList.querySelectorAll("[data-profile-id]").forEach((button) => {
+    button.addEventListener("click", () => updateProfileFromApproval(button.dataset.profileId, button.dataset.status));
+  });
+}
+
+function renderApprovalItem(profile) {
+  const statusLabel = {
+    pending: "승인 대기",
+    approved: "승인됨",
+    rejected: "반려",
+    disabled: "비활성"
+  }[profile.status] || profile.status;
+
+  return `
+    <div class="approval-item" data-approval-row="${profile.id}">
+      <strong>${escapeHtml(profile.displayName)} · ${statusLabel}</strong>
+      <small>${escapeHtml(profile.email)}<br>${escapeHtml(divisionName(profile.divisionId))}</small>
+      <div class="approval-grid">
+        <select data-field="divisionId">
+          ${divisions.map((division) => `<option value="${division.id}" ${division.id === profile.divisionId ? "selected" : ""}>${division.name}</option>`).join("")}
+        </select>
+        <select data-field="role">
+          <option value="member" ${profile.role === "member" ? "selected" : ""}>구성원</option>
+          <option value="division_admin" ${profile.role === "division_admin" ? "selected" : ""}>국 관리자</option>
+          <option value="super_admin" ${profile.role === "super_admin" ? "selected" : ""}>총관리자</option>
+        </select>
+      </div>
+      <div class="approval-actions">
+        <button class="primary-button" type="button" data-profile-id="${profile.id}" data-status="approved">승인/저장</button>
+        <button class="text-button" type="button" data-profile-id="${profile.id}" data-status="disabled">비활성</button>
+      </div>
+    </div>
+  `;
+}
+
+async function updateProfileFromApproval(profileId, status = "approved") {
+  const row = els.userApprovalList.querySelector(`[data-approval-row="${profileId}"]`);
+  const body = {
+    division_id: row.querySelector('[data-field="divisionId"]').value,
+    role: row.querySelector('[data-field="role"]').value,
+    status,
+    approved_by: state.auth.user.id,
+    approved_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    await supabaseRequest(`app_profiles?id=eq.${profileId}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify(body)
+    });
+    await loadAndRenderApprovals();
+  } catch (error) {
+    alert(`사용자 권한 저장에 실패했습니다.\n${error.message}`);
+  }
+}
+
 async function handleSupabaseConnect() {
   const url = normalizeSupabaseUrl(els.supabaseUrlInput.value);
   const anonKey = els.supabaseAnonKeyInput.value.trim();
@@ -409,8 +711,8 @@ function handleSupabaseDisconnect() {
   state.supabase.enabled = false;
   state.supabase.connected = false;
   saveSupabaseConfig();
-  els.supabaseUrlInput.value = "";
-  els.supabaseAnonKeyInput.value = "";
+  if (els.supabaseUrlInput) els.supabaseUrlInput.value = "";
+  if (els.supabaseAnonKeyInput) els.supabaseAnonKeyInput.value = "";
   state.data = loadLocalData();
   setSupabaseStatus("로컬 저장", "local");
   render();
@@ -419,12 +721,14 @@ function handleSupabaseDisconnect() {
 function render() {
   const division = divisions.find((item) => item.id === state.divisionId);
   const storageLabel = state.supabase.connected ? "Supabase DB" : "브라우저 로컬 저장";
+  const isManager = isAdminRole();
   els.permissionNotice.textContent =
-    state.role === "admin"
-      ? `${division.name} 관리자: 장관·차관·실장·국장·과장 일정을 등록, 수정, 삭제할 수 있습니다. 현재 저장소: ${storageLabel}.`
+    isManager
+      ? `${division.name} ${roleLabel(state.role)}: 장관·차관·실장·국장·과장 일정을 등록, 수정, 삭제할 수 있습니다. 현재 저장소: ${storageLabel}.`
       : `${division.name} 구성원: 국장·과장 일정은 등록·수정할 수 있고 장관·차관·실장 일정은 열람만 가능합니다. 현재 저장소: ${storageLabel}.`;
 
   renderSupabaseStatus();
+  els.userApprovalPanel.classList.toggle("hidden", state.role !== "super_admin");
   els.monthViewButton.classList.toggle("active", state.view === "month");
   els.weekViewButton.classList.toggle("active", state.view === "week");
   els.monthViewButton.setAttribute("aria-selected", state.view === "month");
@@ -598,7 +902,7 @@ function openEventDialog({ date, event } = {}) {
   els.eventTitle.value = selected?.title || "";
   els.eventMemo.value = selected?.memo || "";
   els.deleteEventButton.classList.toggle("hidden", !selected);
-  els.deleteEventButton.disabled = !selected || state.role !== "admin";
+  els.deleteEventButton.disabled = !selected || !isAdminRole();
 
   setFormDisabled(editingRestricted);
   if (editingRestricted) {
@@ -626,6 +930,11 @@ function setFormDisabled(isDisabled) {
 
 async function saveEventFromForm(event) {
   event.preventDefault();
+  if (state.supabase.enabled && !state.supabase.connected) {
+    alert("Supabase 연결이 끊겨 저장할 수 없습니다. 새로고침 후 다시 시도해주세요.");
+    return;
+  }
+
   const rank = els.eventRank.value;
   if (!canEditRank(rank)) {
     alert("장관·차관·실장 일정은 관리자만 등록·수정할 수 있습니다.");
@@ -687,7 +996,12 @@ async function saveEventFromForm(event) {
 }
 
 async function deleteCurrentEvent() {
-  if (state.role !== "admin") {
+  if (state.supabase.enabled && !state.supabase.connected) {
+    alert("Supabase 연결이 끊겨 삭제할 수 없습니다. 새로고침 후 다시 시도해주세요.");
+    return;
+  }
+
+  if (!isAdminRole()) {
     alert("삭제는 관리자만 가능합니다.");
     return;
   }
@@ -761,6 +1075,57 @@ function getVisibleEvents() {
     .sort(compareEvents);
 }
 
+async function ensureAccessToken() {
+  const session = state.auth.session;
+  if (!session) throw new Error("로그인이 필요합니다.");
+
+  const expiresAt = Number(session.expiresAt || 0);
+  if (expiresAt && expiresAt - 60 > Math.floor(Date.now() / 1000)) {
+    return session.accessToken;
+  }
+
+  const refreshed = await authRequest("token?grant_type=refresh_token", {
+    method: "POST",
+    body: JSON.stringify({ refresh_token: session.refreshToken })
+  });
+  const nextSession = authPayloadToSession(refreshed);
+  saveAuthSession(nextSession);
+  return nextSession.accessToken;
+}
+
+async function authRequest(path, options = {}) {
+  const token = options.authToken || state.supabase.anonKey;
+  const response = await fetch(`${state.supabase.url}/auth/v1/${path}`, {
+    method: options.method || "GET",
+    headers: {
+      apikey: state.supabase.anonKey,
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    body: options.body
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(formatSupabaseError(message, response.status));
+  }
+
+  if (response.status === 204) return null;
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
+
+function authPayloadToSession(payload) {
+  return {
+    accessToken: payload.access_token,
+    refreshToken: payload.refresh_token,
+    expiresAt: payload.expires_at || Math.floor(Date.now() / 1000) + Number(payload.expires_in || 3600),
+    user: payload.user
+  };
+}
+
 async function fetchSupabaseData() {
   const [eventRows, historyRows] = await Promise.all([
     supabaseRequest("events?select=*&order=date.asc,start_time.asc"),
@@ -794,11 +1159,12 @@ async function saveHistoryToSupabase(item) {
 }
 
 async function supabaseRequest(path, options = {}) {
+  const accessToken = await ensureAccessToken();
   const response = await fetch(`${state.supabase.url}/rest/v1/${path}`, {
     method: options.method || "GET",
     headers: {
       apikey: state.supabase.anonKey,
-      Authorization: `Bearer ${state.supabase.anonKey}`,
+      Authorization: `Bearer ${accessToken}`,
       Accept: "application/json",
       "Content-Type": "application/json",
       ...(options.headers || {})
@@ -880,6 +1246,22 @@ function dbToHistory(row) {
   };
 }
 
+function dbToProfile(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    email: row.email,
+    displayName: row.display_name,
+    divisionId: normalizeDivisionId(row.division_id),
+    role: row.role,
+    status: row.status,
+    approvedBy: row.approved_by,
+    approvedAt: row.approved_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
 function normalizeData(data) {
   return {
     events: Array.isArray(data?.events)
@@ -943,11 +1325,27 @@ function rankById(id) {
 
 function canEditRank(rankId) {
   const rank = rankById(rankId);
-  return !rank.adminOnly || state.role === "admin";
+  return !rank.adminOnly || isAdminRole();
+}
+
+function isAdminRole() {
+  return state.role === "division_admin" || state.role === "super_admin";
+}
+
+function roleLabel(role) {
+  return {
+    member: "구성원",
+    division_admin: "국 관리자",
+    super_admin: "총관리자"
+  }[role] || role;
 }
 
 function currentDivisionName() {
-  return divisions.find((division) => division.id === state.divisionId)?.name || "";
+  return divisionName(state.divisionId);
+}
+
+function divisionName(id) {
+  return divisions.find((division) => division.id === id)?.name || "";
 }
 
 function startOfDay(date) {
