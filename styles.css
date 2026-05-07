@@ -686,9 +686,9 @@ select:disabled {
 
 .week-event {
   display: grid;
-  grid-template-columns: 96px 92px minmax(0, 1fr) 130px;
+  grid-template-columns: 96px 92px minmax(180px, 1.4fr) minmax(180px, 1fr);
   gap: 10px;
-  align-items: center;
+  align-items: start;
   min-height: 46px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--line);
@@ -718,18 +718,21 @@ select:disabled {
 
 .week-title {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
   font-weight: 800;
 }
 
 .week-meta {
   color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
   font-size: 13px;
+  line-height: 1.45;
 }
 
 .empty-state {
