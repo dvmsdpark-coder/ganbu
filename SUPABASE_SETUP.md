@@ -14,8 +14,10 @@ Supabase Dashboard에서:
 
 1. `Authentication`으로 이동합니다.
 2. `Providers` 또는 `Sign In / Providers`에서 `Email`을 엽니다.
-3. `Confirm email` 또는 `Enable email confirmations`를 끕니다.
-4. 이미 가입한 사용자가 이메일 미확인 상태라면 Supabase `Authentication > Users`에서 사용자를 확인 처리하거나, 해당 사용자를 삭제한 뒤 다시 가입합니다.
+3. `Email provider`를 켭니다.
+4. `Email signups` 또는 `Allow new users to sign up`을 켭니다.
+5. `Confirm email` 또는 `Enable email confirmations`는 끕니다.
+6. 이미 가입한 사용자가 이메일 미확인 상태라면 Supabase `Authentication > Users`에서 사용자를 확인 처리하거나, 해당 사용자를 삭제한 뒤 다시 가입합니다.
 
 이메일 인증을 계속 사용할 경우에는 `Authentication > URL Configuration`에서 `Site URL`과 `Redirect URLs`를 실제 배포 주소로 바꿔야 합니다. 기본값이 `localhost:3000`이면 인증 링크가 로컬 주소로 이동해 접속이 거부됩니다.
 
@@ -53,6 +55,7 @@ set status = 'approved',
 
 ## 로그인이 안 될 때
 
+- `Email signups are disabled`가 나오면 Supabase `Authentication > Providers > Email`에서 `Email provider`와 `Email signups`를 켜세요.
 - 인증 메일 링크가 `localhost:3000`으로 열리면 Supabase `Authentication > Providers > Email`에서 이메일 확인을 끄거나, `Authentication > URL Configuration`의 Site URL을 실제 배포 주소로 바꾸세요.
 - `이메일 확인이 완료되지 않았습니다`가 나오면 Supabase에서 보낸 인증 메일을 확인하거나, Supabase Dashboard > Authentication > Providers > Email에서 이메일 확인을 꺼주세요.
 - `사용자 프로필을 찾을 수 없습니다`가 나오면 `supabase-schema.sql`을 다시 실행한 뒤 위의 첫 총관리자 승인 SQL을 다시 실행하세요.

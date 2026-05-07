@@ -540,7 +540,7 @@ async function handleLogin(event) {
     const profile = await fetchCurrentProfile();
     await enterWithProfile(profile);
   } catch (error) {
-    setAuthMessage("로그인에 실패했습니다. 이메일, 비밀번호, 승인 상태를 확인해주세요.", true);
+    setAuthMessage(error.message, true);
   }
 }
 
@@ -594,7 +594,7 @@ function applyProfileToHeader() {
 async function fetchCurrentProfile() {
   const rows = await supabaseRequest(`app_profiles?user_id=eq.${state.auth.user.id}&select=*&limit=1`);
   if (!rows?.length) {
-    throw new Error("사용자 프로필을 찾을 수 없습니다. Supabase Auth 스키마를 실행해주세요.");
+    throw new Error("사용자 프로필을 찾을 수 없습니다. supabase-schema.sql을 다시 실행한 뒤 첫 총관리자 승인 SQL을 실행해주세요.");
   }
   return dbToProfile(rows[0]);
 }
@@ -1284,6 +1284,18 @@ function formatSupabaseError(message, status) {
     const parsed = JSON.parse(message);
     if (parsed.code === "PGRST205") {
       return "Supabase에 events 또는 event_history 테이블이 없습니다. supabase-schema.sql을 SQL Editor에서 먼저 실행해주세요.";
+    }
+    if (parsed.code === "PGRST116") {
+      return "사용자 정보를 찾을 수 없습니다. supabase-schema.sql을 다시 실행한 뒤 첫 총관리자 승인 SQL을 실행해주세요.";
+    }
+    if (parsed.error_code === "email_provider_disabled" || /email signups are disabled/i.test(parsed.msg || parsed.message || "")) {
+      return "Supabase에서 이메일 회원가입이 꺼져 있습니다. Authentication > Providers > Email에서 Email provider와 Email signups를 켜주세요.";
+    }
+    if (/email not confirmed/i.test(parsed.message || "")) {
+      return "이메일 확인이 완료되지 않았습니다. Supabase 인증 메일을 확인하거나, Supabase Authentication 설정에서 이메일 확인을 꺼주세요.";
+    }
+    if (/invalid login credentials/i.test(parsed.message || "")) {
+      return "이메일 또는 비밀번호가 맞지 않습니다. 가입한 이메일과 비밀번호를 다시 확인해주세요.";
     }
     return parsed.message || message || `HTTP ${status}`;
   } catch {
