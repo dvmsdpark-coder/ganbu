@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>간부 일정관리</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">일</div>
+          <div>
+            <h1>간부 일정관리</h1>
+            <p id="todayLabel"></p>
+          </div>
+        </div>
+        <div class="session-panel" aria-label="접속 정보">
+          <label>
+            <span>접속 국</span>
+            <select id="divisionSelect"></select>
+          </label>
+          <label>
+            <span>권한</span>
+            <select id="roleSelect">
+              <option value="member">구성원</option>
+              <option value="admin">관리자</option>
+            </select>
+          </label>
+          <label>
+            <span>사용자</span>
+            <input id="userNameInput" type="text" autocomplete="name">
+          </label>
+        </div>
+      </header>
+
+      <main class="main-layout">
+        <aside class="rail">
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>필터</h2>
+              <button id="resetFilterButton" class="icon-button" type="button" title="필터 초기화" aria-label="필터 초기화">↺</button>
+            </div>
+            <div class="filter-list" id="rankFilters"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>범례</h2>
+            </div>
+            <div class="legend" id="legend"></div>
+          </section>
+
+          <section class="panel backend-panel">
+            <div class="panel-heading">
+              <h2>Supabase</h2>
+              <span id="supabaseStatus" class="sync-status local">로컬 저장</span>
+            </div>
+            <label>
+              <span>Project URL</span>
+              <input id="supabaseUrlInput" type="url" placeholder="https://project-ref.supabase.co">
+            </label>
+            <label>
+              <span>Anon key</span>
+              <input id="supabaseAnonKeyInput" type="password" autocomplete="off">
+            </label>
+            <div class="backend-actions">
+              <button id="supabaseConnectButton" class="primary-button" type="button">연결</button>
+              <button id="supabaseDisconnectButton" class="text-button" type="button">해제</button>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>변경 이력</h2>
+            </div>
+            <div class="history-list" id="historyList"></div>
+          </section>
+        </aside>
+
+        <section class="workspace">
+          <div class="toolbar">
+            <div class="date-controls">
+              <button id="prevButton" class="icon-button" type="button" title="이전" aria-label="이전">‹</button>
+              <div>
+                <div id="periodTitle" class="period-title"></div>
+                <div id="periodSubtitle" class="period-subtitle"></div>
+              </div>
+              <button id="nextButton" class="icon-button" type="button" title="다음" aria-label="다음">›</button>
+              <button id="todayButton" class="text-button" type="button">오늘</button>
+            </div>
+
+            <div class="view-actions">
+              <div class="segmented" role="tablist" aria-label="보기 전환">
+                <button id="monthViewButton" class="segment active" type="button" role="tab" aria-selected="true">월간</button>
+                <button id="weekViewButton" class="segment" type="button" role="tab" aria-selected="false">주간</button>
+              </div>
+              <label class="switch">
+                <input id="showArchivedToggle" type="checkbox">
+                <span>지난 일정</span>
+              </label>
+              <button id="newEventButton" class="primary-button" type="button">+ 일정</button>
+            </div>
+          </div>
+
+          <div class="notice-bar" id="permissionNotice"></div>
+
+          <div id="monthView" class="calendar-view"></div>
+          <div id="weekView" class="week-view hidden"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="eventDialog" class="event-dialog">
+      <form id="eventForm" method="dialog">
+        <div class="dialog-head">
+          <h2 id="dialogTitle">일정 등록</h2>
+          <button id="closeDialogButton" class="icon-button" type="button" title="닫기" aria-label="닫기">×</button>
+        </div>
+
+        <input id="eventId" type="hidden">
+        <div class="form-grid">
+          <label>
+            <span>날짜</span>
+            <input id="eventDate" type="date" required>
+          </label>
+          <label>
+            <span>시작</span>
+            <input id="eventStartTime" type="time" required>
+          </label>
+          <label>
+            <span>종료</span>
+            <input id="eventEndTime" type="time">
+          </label>
+          <label>
+            <span>구분</span>
+            <select id="eventRank" required></select>
+          </label>
+          <label>
+            <span>대상</span>
+            <input id="eventPerson" type="text" placeholder="예: 국장, 행정과장" required>
+          </label>
+          <label>
+            <span>장소</span>
+            <input id="eventLocation" type="text" placeholder="예: 대회의실">
+          </label>
+        </div>
+
+        <label class="wide-field">
+          <span>일정</span>
+          <input id="eventTitle" type="text" placeholder="예: 국정과제 점검회의" required>
+        </label>
+
+        <label class="wide-field">
+          <span>메모</span>
+          <textarea id="eventMemo" rows="3" placeholder="공개 일정 출처, 변경 사유 등"></textarea>
+        </label>
+
+        <div class="dialog-actions">
+          <button id="deleteEventButton" class="danger-button" type="button">삭제</button>
+          <div class="spacer"></div>
+          <button class="text-button" type="button" id="cancelButton">취소</button>
+          <button class="primary-button" type="submit">저장</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
