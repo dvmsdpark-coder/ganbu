@@ -76,6 +76,18 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
 
+insert into public.app_profiles (user_id, email, display_name, division_id, role, status)
+select
+  users.id,
+  users.email,
+  coalesce(users.raw_user_meta_data ->> 'display_name', split_part(users.email, '@', 1)),
+  coalesce(users.raw_user_meta_data ->> 'division_id', 'policyPlanningOffice'),
+  'member',
+  'pending'
+from auth.users
+where users.email is not null
+on conflict (user_id) do nothing;
+
 create or replace function app_private.current_user_role()
 returns text
 language sql
@@ -240,6 +252,35 @@ with check (
   )
 );
 
+create or replace function public.prune_old_schedule_data()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  deleted_events integer := 0;
+  deleted_history integer := 0;
+begin
+  if not app_private.is_approved_user() then
+    raise exception 'approved user required';
+  end if;
+
+  delete from public.events
+  where date < current_date - interval '14 days';
+  get diagnostics deleted_events = row_count;
+
+  delete from public.event_history
+  where changed_at < now() - interval '180 days';
+  get diagnostics deleted_history = row_count;
+
+  return jsonb_build_object(
+    'deleted_events', deleted_events,
+    'deleted_history', deleted_history
+  );
+end;
+$$;
+
 revoke all on public.app_profiles from anon;
 revoke all on public.events from anon;
 revoke all on public.event_history from anon;
@@ -248,5 +289,6 @@ grant usage on schema public to authenticated;
 grant select, update on public.app_profiles to authenticated;
 grant select, insert, update on public.events to authenticated;
 grant select, insert on public.event_history to authenticated;
+grant execute on function public.prune_old_schedule_data() to authenticated;
 grant usage on schema app_private to authenticated;
 grant execute on all functions in schema app_private to authenticated;

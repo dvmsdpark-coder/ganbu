@@ -154,6 +154,7 @@ async function loadData() {
   if (state.supabase.enabled) {
     setSupabaseStatus("Supabase 연결 중", "pending");
     try {
+      await pruneOldScheduleData();
       state.data = await fetchSupabaseData();
       state.supabase.connected = true;
       setSupabaseStatus("Supabase 연결됨", "connected");
@@ -1136,6 +1137,18 @@ async function fetchSupabaseData() {
     events: eventRows.map(dbToEvent),
     history: historyRows.map(dbToHistory)
   });
+}
+
+async function pruneOldScheduleData() {
+  try {
+    await supabaseRequest("rpc/prune_old_schedule_data", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: "{}"
+    });
+  } catch (error) {
+    console.warn("자동정리 실패", error);
+  }
 }
 
 async function saveEventToSupabase(event) {
