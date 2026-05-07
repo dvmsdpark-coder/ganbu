@@ -30,7 +30,7 @@
 
 Supabase 설정을 바꾸려면 `app.js`의 `DEFAULT_SUPABASE_CONFIG` 값을 수정하면 됩니다. DB 테이블은 `supabase-schema.sql`을 Supabase SQL Editor에서 실행해 만들 수 있습니다.
 
-첫 총관리자 계정은 앱에서 회원가입한 뒤 `SUPABASE_SETUP.md`의 SQL로 한 번만 승인해야 합니다. 이후 가입자는 총관리자가 앱 안에서 승인하고 권한을 부여합니다.
+첫 총관리자 계정은 앱에서 회원가입한 뒤 `SUPABASE_SETUP.md`의 SQL로 한 번만 승인해야 합니다. 이후 가입자는 총관리자가 앱 안에서 승인하고 권한을 부여합니다. 이 앱은 총관리자 승인 절차가 있으므로 Supabase 이메일 확인은 꺼두는 것을 권장합니다.
 
 여러 직원이 접속하려면 이 앱 파일도 공용 위치에 배포해야 합니다. 시험 운영은 내부 공유 서버, GitHub Pages, Cloudflare Pages, Netlify 같은 무료 정적 호스팅으로 시작할 수 있습니다.
 
