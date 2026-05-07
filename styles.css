@@ -232,10 +232,34 @@ textarea:focus {
   margin-bottom: 10px;
 }
 
+.backend-copy {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .backend-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+.backend-settings {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.backend-settings summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.backend-settings label:first-of-type {
+  margin-top: 10px;
 }
 
 .sync-status {
