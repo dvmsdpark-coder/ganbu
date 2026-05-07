@@ -780,9 +780,7 @@ function renderMonth() {
 function renderMonthDay(date, activeMonth) {
   const dateKey = toDateInput(date);
   const events = getVisibleEvents().filter((event) => event.date === dateKey);
-  const topEvents = events.slice(0, 4);
   const desktopMoreCount = events.length - 4;
-  const mobileMoreCount = events.length - 2;
   const isOutside = date.getMonth() !== activeMonth;
   const isToday = dateKey === toDateInput(new Date());
 
@@ -793,9 +791,8 @@ function renderMonthDay(date, activeMonth) {
         <button class="small-add" type="button" data-open-date="${dateKey}" title="일정 등록" aria-label="${dateKey} 일정 등록">+</button>
       </div>
       <div class="event-stack">
-        ${topEvents.map(renderEventPill).join("")}
+        ${events.map(renderEventPill).join("")}
         ${desktopMoreCount > 0 ? `<div class="more-count desktop-more-count">+${desktopMoreCount}</div>` : ""}
-        ${mobileMoreCount > 0 ? `<div class="more-count mobile-more-count">+${mobileMoreCount}</div>` : ""}
       </div>
     </div>
   `;
@@ -903,7 +900,7 @@ function openEventDialog({ date, event } = {}) {
   els.eventTitle.value = selected?.title || "";
   els.eventMemo.value = selected?.memo || "";
   els.deleteEventButton.classList.toggle("hidden", !selected);
-  els.deleteEventButton.disabled = !selected || !isAdminRole();
+  els.deleteEventButton.disabled = !selected || !canDeleteEvent(selected);
 
   setFormDisabled(editingRestricted);
   if (editingRestricted) {
@@ -1002,14 +999,14 @@ async function deleteCurrentEvent() {
     return;
   }
 
-  if (!isAdminRole()) {
-    alert("삭제는 관리자만 가능합니다.");
-    return;
-  }
-
   const id = els.eventId.value;
   const event = state.data.events.find((item) => item.id === id);
   if (!event) return;
+
+  if (!canDeleteEvent(event)) {
+    alert("국장·과장 일정은 구성원이 삭제할 수 있고, 장관·차관·실장 일정은 관리자만 삭제할 수 있습니다.");
+    return;
+  }
 
   event.deleted = true;
   event.updatedBy = state.userName;
@@ -1351,6 +1348,10 @@ function rankById(id) {
 function canEditRank(rankId) {
   const rank = rankById(rankId);
   return !rank.adminOnly || isAdminRole();
+}
+
+function canDeleteEvent(event) {
+  return Boolean(event) && canEditRank(event.rank);
 }
 
 function isAdminRole() {

@@ -631,6 +631,10 @@ select:disabled {
   text-align: left;
 }
 
+.event-pill:nth-of-type(n + 5) {
+  display: none;
+}
+
 .event-time {
   color: var(--muted);
   font-size: 11px;
@@ -891,15 +895,16 @@ select:disabled {
   }
 
   .event-pill {
+    display: grid;
     grid-template-columns: 1fr;
-    min-height: 18px;
+    min-height: 30px;
     border-left-width: 3px;
     padding: 2px 3px;
     border-radius: 4px;
   }
 
-  .event-pill:nth-of-type(n + 3) {
-    display: none;
+  .event-pill:nth-of-type(n + 5) {
+    display: grid;
   }
 
   .event-pill .event-time {
@@ -910,7 +915,13 @@ select:disabled {
   }
 
   .event-pill .event-name {
-    display: none;
+    display: block;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    font-size: 9px;
+    line-height: 1.25;
   }
 
   .more-count {
@@ -924,7 +935,7 @@ select:disabled {
   }
 
   .mobile-more-count {
-    display: block;
+    display: none;
   }
 
   .week-event {
