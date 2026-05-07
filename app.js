@@ -264,8 +264,8 @@ function renderStaticControls() {
   els.roleSelect.value = state.role;
   els.userNameInput.value = state.userName;
   els.showArchivedToggle.checked = state.showArchived;
-  els.supabaseUrlInput.value = state.supabase.url;
-  els.supabaseAnonKeyInput.value = state.supabase.anonKey;
+  if (els.supabaseUrlInput) els.supabaseUrlInput.value = state.supabase.url;
+  if (els.supabaseAnonKeyInput) els.supabaseAnonKeyInput.value = state.supabase.anonKey;
 
   els.eventRank.innerHTML = ranks
     .map((rank) => `<option value="${rank.id}">${rank.label}</option>`)
@@ -363,8 +363,12 @@ function bindEvents() {
     render();
   });
 
-  els.supabaseConnectButton.addEventListener("click", handleSupabaseConnect);
-  els.supabaseDisconnectButton.addEventListener("click", handleSupabaseDisconnect);
+  if (els.supabaseConnectButton) {
+    els.supabaseConnectButton.addEventListener("click", handleSupabaseConnect);
+  }
+  if (els.supabaseDisconnectButton) {
+    els.supabaseDisconnectButton.addEventListener("click", handleSupabaseDisconnect);
+  }
   els.newEventButton.addEventListener("click", () => openEventDialog({ date: toDateInput(state.cursorDate) }));
   els.closeDialogButton.addEventListener("click", () => els.eventDialog.close());
   els.cancelButton.addEventListener("click", () => els.eventDialog.close());
@@ -437,6 +441,7 @@ function render() {
 }
 
 function renderSupabaseStatus() {
+  if (!els.supabaseStatus) return;
   els.supabaseStatus.textContent = state.supabase.statusText;
   els.supabaseStatus.className = `sync-status ${state.supabase.statusKind}`;
 }

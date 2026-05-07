@@ -24,9 +24,9 @@
 
 ## 실제 운영 전환 시 필요한 것
 
-현재 앱에는 Supabase Project URL과 anon key가 기본값으로 들어가 있어서 접속 시 자동으로 Supabase DB에 연결됩니다. 연결에 실패하면 브라우저 `localStorage`에 임시 저장됩니다.
+현재 앱에는 Supabase Project URL과 anon key가 기본값으로 들어가 있어서 접속 시 자동으로 Supabase DB에 연결됩니다. 사용자가 연결 버튼을 누르거나 URL/key를 볼 필요는 없습니다. 연결에 실패하면 브라우저 `localStorage`에 임시 저장됩니다.
 
-Supabase 설정을 바꾸려면 앱 왼쪽 `Supabase > 연결 설정`을 열면 됩니다. DB 테이블은 `supabase-schema.sql`을 Supabase SQL Editor에서 실행해 만들 수 있습니다.
+Supabase 설정을 바꾸려면 `app.js`의 `DEFAULT_SUPABASE_CONFIG` 값을 수정하면 됩니다. DB 테이블은 `supabase-schema.sql`을 Supabase SQL Editor에서 실행해 만들 수 있습니다.
 
 현재 Supabase 정책은 시험 운영용입니다. 실제 운영 전에는 로그인과 국별 RLS 정책을 적용해야 합니다.
 

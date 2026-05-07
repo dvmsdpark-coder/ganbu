@@ -3,7 +3,7 @@
 1. Supabase에서 무료 프로젝트를 만듭니다.
 2. SQL Editor에서 `supabase-schema.sql` 내용을 실행합니다.
 3. Project Settings > API에서 Project URL과 anon public key를 확인합니다.
-4. 앱을 열면 기본 Supabase 정보로 자동 연결됩니다. 연결 정보를 바꿀 때만 앱 화면 왼쪽 `Supabase > 연결 설정`을 엽니다.
+4. 앱을 열면 기본 Supabase 정보로 자동 연결됩니다. 연결 정보를 바꿀 때는 `app.js`의 `DEFAULT_SUPABASE_CONFIG` 값을 수정합니다.
 
 현재 앱에는 다음 프로젝트 정보가 기본값으로 들어가 있습니다.
 
