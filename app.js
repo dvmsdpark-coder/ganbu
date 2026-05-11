@@ -7,6 +7,10 @@ const DEFAULT_SUPABASE_CONFIG = {
 };
 
 const divisions = [
+  { id: "operationSupportDivision", name: "운영지원과" },
+  { id: "spokespersonOffice", name: "대변인실" },
+  { id: "auditOffice", name: "감사관실" },
+  { id: "emergencySafetyPlanningOffice", name: "비상안전기획관실" },
   { id: "policyPlanningOffice", name: "정책기획관실" },
   { id: "internationalAgriFoodCooperationOffice", name: "국제농식품협력관실" },
   { id: "ruralPolicyBureau", name: "농촌정책국" },
