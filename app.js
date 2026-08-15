@@ -253,7 +253,7 @@ function createInitialData() {
         id: cryptoId(),
         divisionId: "policyPlanningOffice",
         action: "초기 데이터 생성",
-        title: "간부 일정관리",
+        title: "농림축산식품부 일정관리 프로그램",
         actor: "시스템",
         at: now,
         detail: "예시 일정이 등록되었습니다."
