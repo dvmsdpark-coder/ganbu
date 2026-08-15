@@ -31,8 +31,14 @@ create table if not exists public.events (
   updated_by text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  deleted boolean not null default false
+  deleted boolean not null default false,
+  share_downstream boolean not null default false
 );
+
+alter table public.events add column if not exists share_downstream boolean not null default false;
+
+drop trigger if exists events_apply_sharing_rule on public.events;
+drop function if exists public.apply_event_sharing_rule();
 
 create table if not exists public.event_history (
   id uuid primary key default gen_random_uuid(),
@@ -160,6 +166,58 @@ as $$
     or target_rank in ('director', 'manager')
 $$;
 
+create or replace function app_private.can_view_event(source_division text, shared_downstream boolean)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    app_private.is_super_admin()
+    or source_division = app_private.current_user_division()
+    or (
+      coalesce(shared_downstream, false)
+      and app_private.current_user_division() = any(
+        case source_division
+          when 'ministerOffice' then array[
+            'ministerOffice', 'viceMinisterOffice', 'planningCoordinationOffice',
+            'agriIndustryInnovationPolicyBureau', 'grainPolicyBureau', 'operationSupportDivision',
+            'spokespersonOffice', 'auditOffice', 'emergencySafetyPlanningOffice',
+            'policyPlanningOffice', 'internationalAgriFoodCooperationOffice', 'ruralPolicyBureau',
+            'agriculturalPolicyOffice', 'agriIndustryInnovationPolicyOffice',
+            'ruralIncomeEnergyPolicyOffice', 'foodIndustryPolicyOffice', 'animalWelfarePolicyBureau',
+            'grainPolicyOffice', 'livestockPolicyOffice', 'distributionConsumptionPolicyOffice',
+            'quarantinePolicyBureau'
+          ]
+          when 'viceMinisterOffice' then array[
+            'viceMinisterOffice', 'planningCoordinationOffice', 'agriIndustryInnovationPolicyBureau',
+            'grainPolicyBureau', 'operationSupportDivision', 'spokespersonOffice', 'auditOffice',
+            'emergencySafetyPlanningOffice', 'policyPlanningOffice',
+            'internationalAgriFoodCooperationOffice', 'ruralPolicyBureau', 'agriculturalPolicyOffice',
+            'agriIndustryInnovationPolicyOffice', 'ruralIncomeEnergyPolicyOffice',
+            'foodIndustryPolicyOffice', 'animalWelfarePolicyBureau', 'grainPolicyOffice',
+            'livestockPolicyOffice', 'distributionConsumptionPolicyOffice', 'quarantinePolicyBureau'
+          ]
+          when 'planningCoordinationOffice' then array[
+            'planningCoordinationOffice', 'policyPlanningOffice',
+            'internationalAgriFoodCooperationOffice', 'emergencySafetyPlanningOffice',
+            'ruralPolicyBureau', 'agriculturalPolicyOffice'
+          ]
+          when 'agriIndustryInnovationPolicyBureau' then array[
+            'agriIndustryInnovationPolicyBureau', 'agriIndustryInnovationPolicyOffice',
+            'ruralIncomeEnergyPolicyOffice', 'foodIndustryPolicyOffice', 'animalWelfarePolicyBureau'
+          ]
+          when 'grainPolicyBureau' then array[
+            'grainPolicyBureau', 'grainPolicyOffice', 'livestockPolicyOffice',
+            'distributionConsumptionPolicyOffice', 'quarantinePolicyBureau'
+          ]
+          else array[source_division]
+        end
+      )
+    )
+$$;
+
 alter table public.app_profiles enable row level security;
 alter table public.events enable row level security;
 alter table public.event_history enable row level security;
@@ -194,8 +252,7 @@ to authenticated
 using (
   app_private.is_approved_user()
   and (
-    app_private.is_super_admin()
-    or division_id = app_private.current_user_division()
+    app_private.can_view_event(division_id, share_downstream)
   )
 );
 

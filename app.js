@@ -40,6 +40,33 @@ const divisionAliases = {
   quarantine: "quarantinePolicyBureau"
 };
 
+const downstreamDivisions = {
+  ministerOffice: divisions.map((division) => division.id),
+  viceMinisterOffice: divisions.filter((division) => division.id !== "ministerOffice").map((division) => division.id),
+  planningCoordinationOffice: [
+    "planningCoordinationOffice",
+    "policyPlanningOffice",
+    "internationalAgriFoodCooperationOffice",
+    "emergencySafetyPlanningOffice",
+    "ruralPolicyBureau",
+    "agriculturalPolicyOffice"
+  ],
+  agriIndustryInnovationPolicyBureau: [
+    "agriIndustryInnovationPolicyBureau",
+    "agriIndustryInnovationPolicyOffice",
+    "ruralIncomeEnergyPolicyOffice",
+    "foodIndustryPolicyOffice",
+    "animalWelfarePolicyBureau"
+  ],
+  grainPolicyBureau: [
+    "grainPolicyBureau",
+    "grainPolicyOffice",
+    "livestockPolicyOffice",
+    "distributionConsumptionPolicyOffice",
+    "quarantinePolicyBureau"
+  ]
+};
+
 const ranks = [
   { id: "minister", label: "장관", color: "#bd3f32", adminOnly: true },
   { id: "vice", label: "차관", color: "#2d6fb2", adminOnly: true },
@@ -130,6 +157,10 @@ function bindElements() {
     eventLocation: document.querySelector("#eventLocation"),
     eventTitle: document.querySelector("#eventTitle"),
     eventMemo: document.querySelector("#eventMemo"),
+    eventShareField: document.querySelector("#eventShareField"),
+    eventShareDownstream: document.querySelector("#eventShareDownstream"),
+    eventShareTitle: document.querySelector("#eventShareTitle"),
+    eventShareDescription: document.querySelector("#eventShareDescription"),
     deleteEventButton: document.querySelector("#deleteEventButton"),
     supabaseUrlInput: document.querySelector("#supabaseUrlInput"),
     supabaseAnonKeyInput: document.querySelector("#supabaseAnonKeyInput"),
@@ -894,7 +925,9 @@ function renderHistory() {
 function openEventDialog({ date, event } = {}) {
   const selected = event || null;
   const rank = selected ? rankById(selected.rank) : rankById("director");
-  const editingRestricted = selected && !canEditRank(selected.rank);
+  const editingRestricted = selected && !canEditEvent(selected);
+  const sourceDivisionId = selected?.divisionId || state.divisionId;
+  const supportsDownstreamSharing = Object.hasOwn(downstreamDivisions, sourceDivisionId);
 
   els.dialogTitle.textContent = selected ? "일정 수정" : "일정 등록";
   els.eventId.value = selected?.id || "";
@@ -906,6 +939,12 @@ function openEventDialog({ date, event } = {}) {
   els.eventLocation.value = selected?.location || "";
   els.eventTitle.value = selected?.title || "";
   els.eventMemo.value = selected?.memo || "";
+  els.eventShareField.classList.toggle("hidden", !supportsDownstreamSharing);
+  els.eventShareDownstream.checked = Boolean(selected?.shareDownstream);
+  els.eventShareTitle.textContent = `${divisionName(sourceDivisionId)} 하위 조직에 일정 공개`;
+  const downstreamCount = Math.max((downstreamDivisions[sourceDivisionId] || []).length - 1, 0);
+  els.eventShareDescription.textContent =
+    `활성화하면 지정된 하위 ${downstreamCount}개 부서에서 확인할 수 있습니다. 비활성화하면 ${divisionName(sourceDivisionId)}에서만 보입니다.`;
   els.deleteEventButton.classList.toggle("hidden", !selected);
   els.deleteEventButton.disabled = !selected || !canDeleteEvent(selected);
 
@@ -926,7 +965,8 @@ function setFormDisabled(isDisabled) {
     els.eventPerson,
     els.eventLocation,
     els.eventTitle,
-    els.eventMemo
+    els.eventMemo,
+    els.eventShareDownstream
   ].forEach((field) => {
     field.disabled = isDisabled;
   });
@@ -947,6 +987,11 @@ async function saveEventFromForm(event) {
   }
 
   const id = els.eventId.value;
+  const existingEvent = id ? state.data.events.find((item) => item.id === id) : null;
+  if (existingEvent && !canEditEvent(existingEvent)) {
+    alert("다른 부서에서 공유된 일정은 원본을 등록한 부서에서만 수정할 수 있습니다.");
+    return;
+  }
   const now = new Date().toISOString();
   const payload = {
     divisionId: state.divisionId,
@@ -958,6 +1003,7 @@ async function saveEventFromForm(event) {
     location: els.eventLocation.value.trim(),
     title: els.eventTitle.value.trim(),
     memo: els.eventMemo.value.trim(),
+    shareDownstream: getShareDownstreamValue(state.divisionId),
     updatedBy: state.userName,
     updatedAt: now,
     deleted: false
@@ -1074,7 +1120,7 @@ function getVisibleEvents() {
   const archiveLimit = addDays(startOfDay(new Date()), -14);
   return state.data.events
     .filter((event) => !event.deleted)
-    .filter((event) => event.divisionId === state.divisionId)
+    .filter((event) => canDivisionViewEvent(event, state.divisionId))
     .filter((event) => state.filters.has(event.rank))
     .filter((event) => state.showArchived || new Date(`${event.date}T00:00:00`) >= archiveLimit)
     .sort(compareEvents);
@@ -1211,6 +1257,7 @@ function eventToDb(event) {
     title: event.title,
     location: event.location || "",
     memo: event.memo || "",
+    share_downstream: Boolean(event.shareDownstream),
     created_by: event.createdBy || state.userName,
     updated_by: event.updatedBy || state.userName,
     created_at: event.createdAt || new Date().toISOString(),
@@ -1231,6 +1278,7 @@ function dbToEvent(row) {
     title: row.title,
     location: row.location || "",
     memo: row.memo || "",
+    shareDownstream: Boolean(row.share_downstream),
     createdBy: row.created_by || "",
     updatedBy: row.updated_by || "",
     createdAt: row.created_at,
@@ -1284,7 +1332,8 @@ function normalizeData(data) {
     events: Array.isArray(data?.events)
       ? data.events.map((event) => ({
           ...event,
-          divisionId: normalizeDivisionId(event.divisionId)
+          divisionId: normalizeDivisionId(event.divisionId),
+          shareDownstream: normalizeShareDownstream(event)
         }))
       : [],
     history: Array.isArray(data?.history)
@@ -1358,7 +1407,28 @@ function canEditRank(rankId) {
 }
 
 function canDeleteEvent(event) {
-  return Boolean(event) && canEditRank(event.rank);
+  return Boolean(event) && canEditEvent(event);
+}
+
+function canEditEvent(event) {
+  return Boolean(event)
+    && (state.role === "super_admin" || event.divisionId === state.divisionId)
+    && canEditRank(event.rank);
+}
+
+function getShareDownstreamValue(sourceDivisionId) {
+  return Object.hasOwn(downstreamDivisions, sourceDivisionId) && els.eventShareDownstream.checked;
+}
+
+function canDivisionViewEvent(event, viewerDivisionId) {
+  if (event.divisionId === viewerDivisionId || state.role === "super_admin") return true;
+  if (!event.shareDownstream) return false;
+  return (downstreamDivisions[event.divisionId] || []).includes(viewerDivisionId);
+}
+
+function normalizeShareDownstream(event) {
+  const sourceDivisionId = normalizeDivisionId(event.divisionId);
+  return Object.hasOwn(downstreamDivisions, sourceDivisionId) && Boolean(event.shareDownstream);
 }
 
 function isAdminRole() {
