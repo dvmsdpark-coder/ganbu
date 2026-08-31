@@ -182,11 +182,23 @@
           </label>
           <label>
             <span>시작</span>
-            <input id="eventStartTime" type="time" required>
+            <div class="time-input-group">
+              <div class="period-toggle" aria-label="시작 시간 오전 오후 선택">
+                <button type="button" data-time-period="start" data-period="am" aria-pressed="false">오전</button>
+                <button type="button" data-time-period="start" data-period="pm" aria-pressed="false">오후</button>
+              </div>
+              <input id="eventStartTime" type="time" required>
+            </div>
           </label>
           <label>
             <span>종료</span>
-            <input id="eventEndTime" type="time">
+            <div class="time-input-group">
+              <div class="period-toggle" aria-label="종료 시간 오전 오후 선택">
+                <button type="button" data-time-period="end" data-period="am" aria-pressed="false">오전</button>
+                <button type="button" data-time-period="end" data-period="pm" aria-pressed="false">오후</button>
+              </div>
+              <input id="eventEndTime" type="time">
+            </div>
           </label>
           <label>
             <span>구분</span>

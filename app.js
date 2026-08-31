@@ -477,6 +477,14 @@ function bindEvents() {
   els.cancelButton.addEventListener("click", () => els.eventDialog.close());
   els.eventForm.addEventListener("submit", saveEventFromForm);
   els.deleteEventButton.addEventListener("click", deleteCurrentEvent);
+
+  els.eventForm.querySelectorAll("[data-time-period]").forEach((button) => {
+    button.addEventListener("click", () => setTimePeriod(button.dataset.timePeriod, button.dataset.period));
+  });
+  els.eventStartTime.addEventListener("input", () => syncTimePeriodButtons("start"));
+  els.eventEndTime.addEventListener("input", () => syncTimePeriodButtons("end"));
+  els.eventStartTime.addEventListener("change", () => syncTimePeriodButtons("start"));
+  els.eventEndTime.addEventListener("change", () => syncTimePeriodButtons("end"));
 }
 
 async function restoreAuthenticatedApp() {
@@ -826,7 +834,7 @@ function renderMonthDay(date, activeMonth) {
   return `
     <div class="day-cell ${isOutside ? "outside" : ""} ${isToday ? "today" : ""}">
       <div class="day-head">
-        <span class="day-number">${date.getDate()}</span>
+        <button class="day-number" type="button" data-open-date="${dateKey}" title="${dateKey} 일정 등록" aria-label="${dateKey} 일정 등록">${date.getDate()}</button>
         <button class="small-add" type="button" data-open-date="${dateKey}" title="일정 등록" aria-label="${dateKey} 일정 등록">+</button>
       </div>
       <div class="event-stack">
@@ -934,6 +942,8 @@ function openEventDialog({ date, event } = {}) {
   els.eventDate.value = selected?.date || date || toDateInput(new Date());
   els.eventStartTime.value = selected?.startTime || "09:00";
   els.eventEndTime.value = selected?.endTime || "";
+  syncTimePeriodButtons("start");
+  syncTimePeriodButtons("end");
   els.eventRank.value = selected?.rank || "director";
   els.eventPerson.value = selected?.person || "";
   els.eventLocation.value = selected?.location || "";
@@ -971,6 +981,38 @@ function setFormDisabled(isDisabled) {
     field.disabled = isDisabled;
   });
   els.eventForm.querySelector('button[type="submit"]').disabled = isDisabled;
+  els.eventForm.querySelectorAll("[data-time-period]").forEach((button) => {
+    button.disabled = isDisabled;
+  });
+}
+
+function setTimePeriod(kind, period) {
+  const input = kind === "start" ? els.eventStartTime : els.eventEndTime;
+  let hour;
+  let minute;
+
+  if (input.value) {
+    [hour, minute] = input.value.split(":").map(Number);
+  } else {
+    hour = period === "am" ? 9 : 13;
+    minute = 0;
+  }
+
+  if (period === "am" && hour >= 12) hour -= 12;
+  if (period === "pm" && hour < 12) hour += 12;
+  input.value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  syncTimePeriodButtons(kind);
+}
+
+function syncTimePeriodButtons(kind) {
+  const input = kind === "start" ? els.eventStartTime : els.eventEndTime;
+  const selectedPeriod = input.value && Number(input.value.slice(0, 2)) >= 12 ? "pm" : input.value ? "am" : "";
+
+  els.eventForm.querySelectorAll(`[data-time-period="${kind}"]`).forEach((button) => {
+    const isActive = button.dataset.period === selectedPeriod;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
 }
 
 async function saveEventFromForm(event) {
